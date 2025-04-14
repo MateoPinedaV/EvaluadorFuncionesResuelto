@@ -1,120 +1,109 @@
-﻿namespace Evaluator.Logic;
-
-public class FunctionEvaluator
+﻿namespace Evaluator.Logic
 {
-    public static double Evalute(string infix)
+    public class FunctionEvaluator
     {
-        var postfix = ToPostfix(infix);
-        return Calculate(postfix);
-    }
-
-    private static double Calculate(string postfix)
-    {
-        var stack = new Stack<double>();
-        foreach (var item in postfix)
+        public static double Evaluate(string infix)
         {
-            if (IsOperator(item))
-            {
-                var operator2 = stack.Pop();
-                var operator1 = stack.Pop();
-                stack.Push(Result(operator1, item, operator2));
-            }
-            else
-            {
-                stack.Push(char.GetNumericValue(item));
-            }
+            var postfix = ToPostfix(infix);
+            return Calculate(postfix);
         }
-        return stack.Pop();
-    }
 
-    private static double Result(double operator1, char item, double operator2)
-    {
-        return item switch
+        private static double Calculate(List<string> postfix)
         {
-            '+' => operator1 + operator2,
-            '-' => operator1 - operator2,
-            '*' => operator1 * operator2,
-            '/' => operator1 / operator2,
-            '^' => Math.Pow(operator1, operator2),
-            _ => throw new Exception("Invalid expresion"),
-        };
-    }
-
-    private static string ToPostfix(string infix)
-    {
-        var stack = new Stack<char>();
-        var postfix = string.Empty;
-        foreach (var item in infix)
-        {
-            if (IsOperator(item))
+            var stack = new Stack<double>();
+            foreach (var token in postfix)
             {
-                if (stack.Count == 0)
+                if (IsOperator(token))
                 {
-                    stack.Push(item);
+                    var b = stack.Pop();
+                    var a = stack.Pop();
+                    stack.Push(Result(a, token, b));
                 }
                 else
                 {
-                    if (item == ')')
+                    stack.Push(double.Parse(token, System.Globalization.CultureInfo.InvariantCulture));
+                }
+            }
+            return stack.Pop();
+        }
+
+        private static double Result(double a, string op, double b)
+        {
+            return op switch
+            {
+                "+" => a + b,
+                "-" => a - b,
+                "*" => a * b,
+                "/" => a / b,
+                "^" => Math.Pow(a, b),
+                _ => throw new Exception("Operador inválido."),
+            };
+        }
+
+        private static List<string> ToPostfix(string infix)
+        {
+            var output = new List<string>();
+            var stack = new Stack<string>();
+            var number = "";
+
+            for (int i = 0; i < infix.Length; i++)
+            {
+                var c = infix[i];
+
+                if (char.IsDigit(c) || c == '.')
+                {
+                    number += c;
+                }
+                else
+                {
+                    if (!string.IsNullOrEmpty(number))
                     {
-                        do
-                        {
-                            postfix += stack.Pop();
-                        } while (stack.Peek() != '(');
-                        stack.Pop();
+                        output.Add(number);
+                        number = "";
                     }
-                    else
+
+                    if (c == ' ') continue;
+
+                    var token = c.ToString();
+
+                    if (IsOperator(token))
                     {
-                        if (PriorityExpression(item) > PriorityStack(stack.Peek()))
+                        while (stack.Count > 0 && Priority(token) <= Priority(stack.Peek()))
                         {
-                            stack.Push(item);
+                            output.Add(stack.Pop());
                         }
-                        else
-                        {
-                            postfix += stack.Pop();
-                            stack.Push(item);
-                        }
+                        stack.Push(token);
+                    }
+                    else if (c == '(')
+                    {
+                        stack.Push(token);
+                    }
+                    else if (c == ')')
+                    {
+                        while (stack.Peek() != "(")
+                            output.Add(stack.Pop());
+                        stack.Pop(); // Remove '('
                     }
                 }
             }
-            else
-            {
-                postfix += item;
-            }
+
+            if (!string.IsNullOrEmpty(number))
+                output.Add(number);
+
+            while (stack.Count > 0)
+                output.Add(stack.Pop());
+
+            return output;
         }
-        do
-        {
-            postfix += stack.Pop();
-        } while (stack.Count > 0);
-        return postfix;
-    }
 
-    private static int PriorityStack(char item)
-    {
-        return item switch
+        private static bool IsOperator(string c) => new[] { "+", "-", "*", "/", "^" }.Contains(c);
+
+        private static int Priority(string op) => op switch
         {
-            '^' => 3,
-            '*' => 2,
-            '/' => 2,
-            '+' => 1,
-            '-' => 1,
-            '(' => 0,
-            _ => throw new Exception("Invalid expression."),
+            "^" => 3,
+            "*" or "/" => 2,
+            "+" or "-" => 1,
+            _ => 0
         };
     }
-
-    private static int PriorityExpression(char item)
-    {
-        return item switch
-        {
-            '^' => 4,
-            '*' => 2,
-            '/' => 2,
-            '+' => 1,
-            '-' => 1,
-            '(' => 5,
-            _ => throw new Exception("Invalid expression."),
-        };
-    }
-
-    private static bool IsOperator(char item) => "()^*/+-".IndexOf(item) >= 0;
 }
